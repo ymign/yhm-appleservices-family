@@ -49,9 +49,10 @@ try {
     New-Item -ItemType Directory -Force -Path $taskBin | Out-Null
     Push-Location $PSScriptRoot
     try {
-        & go build -o $taskWorker ./cmd/trusted-device
+        # 本机启动不依赖 Git 版本戳，避免 Git 状态读取失败阻断编译。
+        & go build -buildvcs=false -o $taskWorker ./cmd/trusted-device
         if ($LASTEXITCODE -ne 0) { throw '后台编译失败。' }
-        & go build -o ($taskBin + '\') ./cmd/dashboard ./tools/familyinspect ./tools/accountsetupcheck ./tools/nacexchange
+        & go build -buildvcs=false -o ($taskBin + '\') ./cmd/dashboard ./tools/familyinspect ./tools/accountsetupcheck ./tools/nacexchange
         if ($LASTEXITCODE -ne 0) { throw '面板或配套工具编译失败。' }
     } finally { Pop-Location }
 
