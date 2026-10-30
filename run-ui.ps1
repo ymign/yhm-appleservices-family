@@ -63,9 +63,10 @@ try {
     # Start-Process 的 ArgumentList 会重新拼接，按 Windows 原生 argv 规则引用路径。
     $taskQuotedArgs = @($taskArgs | ForEach-Object { '"' + (($_ -replace '(\\*)"', '$1$1\"') -replace '(\\+)$', '$1$1') + '"' })
     $taskProcess = Start-Process -FilePath $taskDashboard -ArgumentList ($taskQuotedArgs -join ' ') `
-        -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru `
+        -WorkingDirectory $PSScriptRoot -NoNewWindow -PassThru `
         -RedirectStandardOutput (Join-Path $StateDir 'dashboard.out.log') `
         -RedirectStandardError (Join-Path $StateDir 'dashboard.err.log')
+    $null = $taskProcess.Handle
     $taskURL = "http://127.0.0.1:$Port"
     $taskReady = $false
     $taskDeadline = [DateTime]::UtcNow.AddSeconds(20)
@@ -79,7 +80,13 @@ try {
     }
     if (-not $taskReady -or $taskProcess.HasExited) { throw '面板未能就绪，请检查状态目录中的 dashboard.err.log。' }
     Write-Host "启动成功：$taskURL"
+    Write-Host '请保留此窗口；关闭此窗口或按 Ctrl+C，即退出面板及其账号后台。'
     if (-not $NoOpen) { Start-Process $taskURL }
+    # 就绪后释放启动锁，允许再次双击启动并替换旧面板。
+    $taskMutex.ReleaseMutex()
+    $taskLocked = $false
+    $taskProcess.WaitForExit()
+    if ($taskProcess.ExitCode -ne 0) { throw '程序已退出；如非主动关闭，请检查 dashboard.err.log。' }
 } catch {
     if ($taskProcess -and -not $taskProcess.HasExited) {
         & "$env:SystemRoot\System32\taskkill.exe" /PID $taskProcess.Id /T /F | Out-Null

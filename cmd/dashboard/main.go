@@ -18,6 +18,10 @@ func main() {
 	macPushSetup := flag.String("mac-push-setup", "./tools/mac-push-check.py", "account-isolated Mac APS bootstrap")
 	port := flag.Int("port", 18741, "loopback dashboard port")
 	flag.Parse()
+	if err := bindProcessLifetime(); err != nil {
+		fmt.Fprintln(os.Stderr, "无法设置窗口退出清理：", err)
+		os.Exit(1)
+	}
 	absDir, _ := filepath.Abs(*dir)
 	absWorker, _ := filepath.Abs(*worker)
 	absLibrary, _ := filepath.Abs(*library)
